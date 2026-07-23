@@ -1,1 +1,1 @@
-# Template repository for helm charts
+# Kerberos helm charts

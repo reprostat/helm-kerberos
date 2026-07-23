@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/release: {{ .Release.Name }}
+    app.kubernetes.io/component: {{ include "kerberos.primary.fullname" . }}
+  name: {{ include "kerberos.primary.fullname" . }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/release: {{ .Release.Name }}
+      app.kubernetes.io/component: {{ include "kerberos.primary.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/release: {{ .Release.Name }}
+        app.kubernetes.io/component: {{ include "kerberos.primary.fullname" . }}
+    spec:
+      serviceAccountName: {{ include "kerberos.primary.fullname" . }}
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+      {{- range .Values.global.imagePullSecrets }}
+        - name: {{ . }}
+      {{- end }}
+      {{- end }}
+      {{- if .Values.podSecurityContext.enabled }}
+      securityContext: {{- omit .Values.podSecurityContext "enabled" | toYaml | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ include "kerberos.primary.fullname" . }}
+          image: {{ .Values.primary.image.repository }}:{{ .Values.primary.image.tag }}
+          imagePullPolicy: {{ .Values.primary.image.pullPolicy }}
+          {{- if .Values.containerSecurityContext.enabled }}
+          securityContext: {{- omit .Values.containerSecurityContext "enabled" | toYaml | nindent 12 }}
+          {{- end }} 
+          env:
+            - name: REALM
+              value: "{{ .Values.realm.name }}"
+            - name: KRB5_PRIMARY_SERVER
+              value: {{ include "kerberos.primary.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
+            {{- if eq .Values.realm.backend "ldap" }}
+            - name: LDAP_URI
+              value: "{{ .Values.ldap.uri }}"
+            - name: LDAP_CACERT
+              value: "/etc/ldap/certs/ca.crt"
+            - name: LDAP_CERT
+              value: "/etc/ldap/certs/tls.crt"
+            - name: LDAP_KEY
+              value: "/etc/ldap/certs/tls.key"
+            - name: LDAP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  {{- toYaml .Values.ldap.adminSecret | nindent 18 }}
+            {{- end }}                  
+          envFrom:
+            - secretRef:
+                name: {{ .Values.adminSecret }}
+          ports:
+            - name: admin-port
+              containerPort: 749
+              protocol: TCP
+            - name: kdc-port
+              containerPort: 88
+              protocol: TCP
+            - name: kpasswd-port
+              containerPort: 464
+              protocol: TCP
+          volumeMounts:
+            - name: kerberos-primary-data
+              mountPath: {{ (eq .Values.realm.backend "ldap") | ternary "/etc" "/var/lib" }}/krb5kdc
+            - name: kerberos-tls
+              mountPath: /etc/ldap/certs
+              readOnly: true
+      volumes:
+      {{- if .Values.primary.persistence.enabled }}
+        - name: kerberos-primary-data
+          persistentVolumeClaim:
+            claimName: {{ default (printf "%s-data" (include "kerberos.primary.fullname" .)) .Values.primary.persistence.existingClaim }}
+      {{- end }}
+        - name: kerberos-tls
+          secret:
+            secretName: {{ .Values.primary.tlsSecretName }}

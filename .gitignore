@@ -1,3 +1,5 @@
 # Sandbox
+charts/*
+Chart.lock
 **/sandbox/*
 play.yml

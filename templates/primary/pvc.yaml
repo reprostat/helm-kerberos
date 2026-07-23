@@ -1,0 +1,16 @@
+{{- if and .Values.primary.persistence.enabled (not .Values.primary.persistence.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "kerberos.primary.fullname" . }}-data
+  labels:
+    app.kubernetes.io/release: {{ .Release.Name }}
+    app.kubernetes.io/component: {{ include "kerberos.primary.fullname" . }}
+spec:
+  accessModes:
+    - ReadWriteOncePod
+  storageClassName: {{ default .Values.global.defaultStorageClass .Values.primary.persistence.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.primary.persistence.size }}
+{{- end }}

@@ -1,0 +1,21 @@
+apiVersion: v2
+name: kerberos
+dependencies:
+  - name: common
+    version: 2.30.x
+    repository: oci://registry-1.docker.io/bitnamicharts
+version: 0.1.0
+appVersion: 0.2.0
+description: Community developed Kerberos software
+icon: https://raw.githubusercontent.com/reprostat/helm-kerberos/main/logo.png
+keywords:
+  - kerberos
+  - ldap
+  - iam-stack
+  - high availability
+sources:
+  - https://github.com/reprostat/kerberos-server-container
+  - https://github.com/reprostat/helm-kerberos
+maintainers:
+  - name: Tibor Auer
+    email: tibor.auer@gmail.com

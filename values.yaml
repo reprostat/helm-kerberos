@@ -1,0 +1,163 @@
+global:
+  imagePullSecrets: []
+  defaultStorageClass: ""
+
+nameOverride: ""
+
+## Configure Pods Security Context
+## ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod
+## @param podSecurityContext.enabled Enabled OPENLDAP  pods' Security Context
+## @param podSecurityContext.fsGroup Set OPENLDAP  pod's Security Context fsGroup
+##
+podSecurityContext:
+  enabled: true
+  fsGroup: 1001
+## Configure Container Security Context
+## ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod
+## @param containerSecurityContext.enabled Enabled OPENLDAP  containers' Security Context
+## @param containerSecurityContext.runAsUser Set OPENLDAP  containers' Security Context runAsUser
+## @param containerSecurityContext.runAsNonRoot Set OPENLDAP  containers' Security Context runAsNonRoot
+##
+containerSecurityContext:
+  enabled: false
+  runAsUser: 1001
+  runAsNonRoot: true
+
+ports:
+  ## @param ports.admin TCP port for the kerberos admin server on the primary server
+  ##
+  admin: 749
+  ## @param ports.kdc TCP port for the kerberos KDC server
+  ##
+  kdc: 88
+  ## @param ports.kpasswd TCP port for the kerberos kpasswd server on the primary server
+  ##
+  kpasswd: 464
+
+## @param adminSecret Name of the secret containing the kerberos admin password. The secret MUST contain a key named "KRB5_ADMIN_PASSWORD".
+adminSecret: kerberos-admin-secret
+
+realm:
+  name: example.com
+  ## @param realm.backend Type of database to use for storing kerberos data. Options are "db2" or "ldap". If "ldap" is selected, the ldap section MUST be
+  ## configured with the appropriate settings, and the adminSecret MUST include "LDAP_KADMIN_PASSWORD" and "LDAP_KDC_PASSWORD" keys.
+  backend: db2
+
+## ldap:
+##   uri: ldap.local
+##   adminSecret:
+##     name: kerberos-ldap
+##     key: LDAP_ADMIN_PASSWORD 
+
+## primary server
+primary:
+  image:
+    repository: reprostat/kerberos-primary-container
+    tag: latest
+    pullPolicy: Always
+  ## @param resources Kubernetes resource requests and limits for the primary server
+  ## ref: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers
+  ## resources:
+  ##   requests:
+  ##     memory: "32Mi"
+  ##     cpu: "10m"
+  ##   limits:
+  ##     memory: "48Mi"
+  ##     cpu: "100m"
+  resources: {}
+  ## Persist data to a persistent volume
+  persistence:
+    enabled: false
+    ## KDC configuration and database data Persistent Volume Storage Class
+    ##
+    accessModes:
+      - ReadWriteOnce
+    size: 20Mi # needs to be bigger than 16Mi
+    storageClass: ""
+    existingClaim: ""
+  ## @param extraVolumes Optionally specify extra list of additional volumes for the portal pod(s)
+  ##
+  extraVolumes: []
+  ## @param extraVolumeMounts Optionally specify extra list of additional volumeMounts for the portal container(s)
+  ##
+  extraVolumeMounts: []
+  ## @param sidecars Add additional sidecar containers to the portal pod(s)
+  ## e.g:
+  ## sidecars:
+  ##   - name: your-image-name
+  ##     image: your-image
+  ##     imagePullPolicy: Always
+  ##     ports:
+  ##       - name: portname
+  ##         containerPort: 1234
+  ##
+  sidecars: []
+  
+  service:
+    annotations: {}
+    labels: {}
+
+  tlsSecretName: kerberos-tls-secret
+
+## secondary server
+secondary:
+  image:
+    repository: reprostat/kerberos-secondary-container
+    tag: ""
+    pullPolicy: Always
+  replicas: 1
+  resources:
+    requests:
+      memory: "1024Mi"
+      cpu: "250m"
+  ## Persist data to a persistent volume
+  persistence:
+    enabled: false
+    ## KDC configuration and database data Persistent Volume Storage Class
+    ##
+    accessModes:
+      - ReadWriteOnce
+    size: 20Mi # needs to be bigger than 16Mi
+    storageClass: ""
+    existingClaim: ""
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 75
+    targetMemoryUtilizationPercentage: 75
+    behavior: {}
+      ## scaleDown:
+      ##  stabilizationWindowSeconds: 300
+      ##  policies:
+      ##   - type: Pods
+      ##     value: 1
+      ##     periodSeconds: 180
+      ## scaleUp:
+      ##   stabilizationWindowSeconds: 300
+      ##   policies:
+      ##   - type: Pods
+      ##     value: 2
+      ##     periodSeconds: 60
+  ## @param extraVolumes Optionally specify extra list of additional volumes for the portal pod(s)
+  ##
+  extraVolumes: []
+  ## @param extraVolumeMounts Optionally specify extra list of additional volumeMounts for the portal container(s)
+  ##
+  extraVolumeMounts: []
+  ## @param sidecars Add additional sidecar containers to the portal pod(s)
+  ## e.g:
+  ## sidecars:
+  ##   - name: your-image-name
+  ##     image: your-image
+  ##     imagePullPolicy: Always
+  ##     ports:
+  ##       - name: portname
+  ##         containerPort: 1234
+  ##
+  sidecars: []
+  
+  port: 8080
+  
+  service:
+    port: 8080
